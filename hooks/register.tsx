@@ -417,13 +417,12 @@ export const register: Register = on => {
           left={4}
           display="none"
           hover={{ display: 'flex' }}
-          backgroundColor="inverseText"
           paddingX={1}
         >
-          <Text color="claude" backgroundColor="inverseText">
+          <Text color="claude">
             {'◂ '}
           </Text>
-          <Text color="text" backgroundColor="inverseText" wrap="truncate-end">
+          <Text color="text" wrap="truncate-end">
             {saying}
           </Text>
         </Box>
