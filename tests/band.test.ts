@@ -86,7 +86,7 @@ test('Clawd answers a poke', async ($, on) => {
 
   // The desktop draws the mascot as pixels, with no text label.
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  expect((await desktop.findAll({ type: 'Svg' })).length).toBe(1)
+  expect((await desktop.findAll({ type: 'Svg' })).length).toBe(2)
   expect(await desktop.find({ type: 'Box', key: 'clawd' })).toBeDefined()
   await desktop.unmount()
 })

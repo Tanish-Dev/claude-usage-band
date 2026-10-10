@@ -43,6 +43,30 @@ const clawdSvg = (isSquinting: boolean): string => {
   ].join('')
 }
 
+// Three sparkles twinkling through the meters' colours, quicker while a turn
+// is running.
+const sparklesSvg = (isWorking: boolean): string => {
+  const pace = isWorking ? 0.9 : 2.6
+  const colours = `${BLUE[0]};${PURPLE[0]};#D97757;${GREEN[0]};${BLUE[0]}`
+  const star = (x: number, y: number, r: number, delay: number) =>
+    [
+      `<g transform="translate(${x} ${y})">`,
+      `<path d="M0 ${-r}Q0 0 ${r} 0Q0 0 0 ${r}Q0 0 ${-r} 0Q0 0 0 ${-r}Z" fill="${BLUE[0]}">`,
+      `<animateTransform attributeName="transform" type="scale" values="0.35;1;0.35" dur="${pace}s" begin="${-delay * pace}s" repeatCount="indefinite"/>`,
+      `<animate attributeName="opacity" values="0.35;1;0.35" dur="${pace}s" begin="${-delay * pace}s" repeatCount="indefinite"/>`,
+      `<animate attributeName="fill" values="${colours}" dur="${pace * 3}s" begin="${-delay * pace * 3}s" repeatCount="indefinite"/>`,
+      '</path></g>',
+    ].join('')
+
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 18" width="26" height="18">',
+    star(8, 10, 6.5, 0),
+    star(19, 5.5, 4, 0.4),
+    star(20, 14, 2.8, 0.75),
+    '</svg>',
+  ].join('')
+}
+
 // What Clawd says when poked, by how full the fullest meter is.
 const QUIPS: readonly (readonly [number, readonly string[]])[] = [
   [95, ['Scraping the bottom of the tide pool.', 'I can see the limit from here. It waves.']],
@@ -355,8 +379,24 @@ export const register: Register = on => {
     const fullest = Math.max(...meters.map(meter => meter.percent))
     const clawd =
       Svg !== undefined ? (
-        <Box key="clawd" hover={{ scope: 'clawd' }} alignItems="center" flexShrink={0}>
+        // Hovering Clawd shows what it has to say in a talk bubble laid over
+        // the meters beside it, so nothing in the band moves.
+        <Box key="clawd" position="relative" alignItems="center" flexShrink={0}>
           <Svg source={clawdSvg(fullest >= 75)} alt="Clawd" width={24} height={18} />
+          <Box
+            position="absolute"
+            top={0}
+            left={4}
+            display="none"
+            hover={{ display: 'flex' }}
+            backgroundColor="claude"
+            paddingX={1}
+          >
+            <Text bold color="inverseText" wrap="truncate-end">
+              {'◂ '}
+              {quip(fullest, beat)}
+            </Text>
+          </Box>
         </Box>
       ) : (
         <Button
@@ -371,23 +411,8 @@ export const register: Register = on => {
           <Text color={fullest >= 90 ? RED[0] : 'claude'}>{CLAWD}</Text>
         </Button>
       )
-    // What Clawd says while hovered: a talk bubble laid over the meters beside
-    // it, so nothing in the band moves. Drawn last, so it paints on top.
-    const bubble = Svg !== undefined && (
-      <Box
-        position="absolute"
-        top={0}
-        left={4}
-        display="none"
-        hover={{ scope: 'clawd', display: 'flex' }}
-        backgroundColor="claude"
-        paddingX={1}
-      >
-        <Text bold color="inverseText" backgroundColor="claude">
-          {'◂ '}
-          {quip(fullest, beat)}
-        </Text>
-      </Box>
+    const sparkles = Svg !== undefined && (
+      <Svg source={sparklesSvg(e.props.isWorking)} alt="Sparkles" width={26} height={18} />
     )
     const bar = (meter: Meter, width: number) => {
       const filled =
@@ -407,7 +432,7 @@ export const register: Register = on => {
       const width = Svg !== undefined ? 5 : columns >= 100 ? 8 : columns >= 72 ? 5 : 0
 
       return (
-        <Box position="relative" columnGap={2} flexWrap="nowrap" alignItems="center" overflow="hidden">
+        <Box columnGap={2} flexWrap="nowrap" alignItems="center">
           {clawd}
           {meters.map(meter => (
             <Box gap={1} flexShrink={0}>
@@ -426,7 +451,7 @@ export const register: Register = on => {
             </Box>
           ))}
           <Button key="details" plain dimColor label="Details" onPress={() => setMode('full')} />
-          {bubble}
+          {sparkles}
         </Box>
       )
     }
@@ -453,12 +478,12 @@ export const register: Register = on => {
             </Text>
           </Box>
         ))}
-        <Box position="relative" gap={2}>
+        <Box gap={2}>
           {clawd}
           {footer !== '' && <Text dimColor>{footer}</Text>}
           <Button key="compact" dimColor label="Less" onPress={() => setMode('compact')} />
           <Button key="hide" role="dismiss" dimColor label="Hide" onPress={hide} />
-          {bubble}
+          {sparkles}
         </Box>
       </Box>
     )
