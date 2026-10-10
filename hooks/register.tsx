@@ -13,8 +13,9 @@ const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 const THRESHOLDS = [75, 90, 95]
 const FILL = '━'
-// The top row of Claude Code's mascot: small enough to sit in one line.
-const CLAWD = '▐▛███▜▌'
+// Clawd for the terminal: the whole crab in one row of braille cells (a body
+// with two eyes, two arms and four legs, twelve dots by four).
+const CLAWD = '⠼⡯⡿⢿⢽⠧'
 
 // Clawd as pixels, for a surface that draws them: a body with two eye holes,
 // two arms and four legs. It blinks, taps its feet, hops and waves a claw now
@@ -354,14 +355,8 @@ export const register: Register = on => {
     const fullest = Math.max(...meters.map(meter => meter.percent))
     const clawd =
       Svg !== undefined ? (
-        // Hovering Clawd reveals what it has to say, beside it.
-        <Box key="clawd" gap={1} alignItems="center" flexShrink={0}>
+        <Box key="clawd" hover={{ scope: 'clawd' }} alignItems="center" flexShrink={0}>
           <Svg source={clawdSvg(fullest >= 75)} alt="Clawd" width={24} height={18} />
-          <Box display="none" hover={{ display: 'flex' }}>
-            <Text italic color="claude">
-              {quip(fullest, beat)}
-            </Text>
-          </Box>
         </Box>
       ) : (
         <Button
@@ -376,6 +371,24 @@ export const register: Register = on => {
           <Text color={fullest >= 90 ? RED[0] : 'claude'}>{CLAWD}</Text>
         </Button>
       )
+    // What Clawd says while hovered: a talk bubble laid over the meters beside
+    // it, so nothing in the band moves. Drawn last, so it paints on top.
+    const bubble = Svg !== undefined && (
+      <Box
+        position="absolute"
+        top={0}
+        left={4}
+        display="none"
+        hover={{ scope: 'clawd', display: 'flex' }}
+        backgroundColor="claude"
+        paddingX={1}
+      >
+        <Text bold color="inverseText" backgroundColor="claude">
+          {'◂ '}
+          {quip(fullest, beat)}
+        </Text>
+      </Box>
+    )
     const bar = (meter: Meter, width: number) => {
       const filled =
         meter.percent <= 0 ? 0 : Math.min(width, Math.max(1, Math.round((meter.percent / 100) * width)))
@@ -391,10 +404,10 @@ export const register: Register = on => {
     if (view === 'compact') {
       // One line, always: a proportional font draws the bar's glyphs wide, so
       // the desktop gets fewer of them, and nothing here may wrap.
-      const width = Svg !== undefined ? 5 : columns >= 100 ? 10 : columns >= 72 ? 6 : 0
+      const width = Svg !== undefined ? 5 : columns >= 100 ? 8 : columns >= 72 ? 5 : 0
 
       return (
-        <Box columnGap={2} flexWrap="nowrap" alignItems="center" overflow="hidden">
+        <Box position="relative" columnGap={2} flexWrap="nowrap" alignItems="center" overflow="hidden">
           {clawd}
           {meters.map(meter => (
             <Box gap={1} flexShrink={0}>
@@ -412,7 +425,8 @@ export const register: Register = on => {
               )}
             </Box>
           ))}
-          <Button key="details" dimColor label="Details" onPress={() => setMode('full')} />
+          <Button key="details" plain dimColor label="Details" onPress={() => setMode('full')} />
+          {bubble}
         </Box>
       )
     }
@@ -439,11 +453,12 @@ export const register: Register = on => {
             </Text>
           </Box>
         ))}
-        <Box gap={2}>
+        <Box position="relative" gap={2}>
           {clawd}
           {footer !== '' && <Text dimColor>{footer}</Text>}
           <Button key="compact" dimColor label="Less" onPress={() => setMode('compact')} />
           <Button key="hide" role="dismiss" dimColor label="Hide" onPress={hide} />
+          {bubble}
         </Box>
       </Box>
     )
