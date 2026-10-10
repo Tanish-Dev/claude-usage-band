@@ -79,8 +79,14 @@ test('Clawd answers a poke', async ($, on) => {
   })
 
   await $.session.measure(measure(20, 10))
-  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   await ui.press({ key: 'clawd' })
   expect(toasts[0]).toMatch(/^Clawd: /)
   await ui.unmount()
+
+  // The desktop draws the mascot as pixels, with no text label.
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await desktop.findAll({ type: 'Svg' })).length).toBe(1)
+  expect(await desktop.find({ key: 'clawd' })).toBeUndefined()
+  await desktop.unmount()
 })

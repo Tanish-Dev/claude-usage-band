@@ -16,6 +16,22 @@ const FILL = '━'
 // The top row of Claude Code's mascot: small enough to sit in one line.
 const CLAWD = '▐▛███▜▌'
 
+// Clawd as pixels, for a surface that draws them: a body with two eye holes,
+// two arms and four legs, blinking now and then; squinting as the limits fill.
+const clawdSvg = (isSquinting: boolean): string => {
+  const body = '#D97757'
+  const lids = isSquinting
+    ? `<path fill="${body}" d="M4 2h1v1H4zM11 2h1v1h-1z"/>`
+    : `<path fill="${body}" opacity="0" d="M4 2h1v2H4zM11 2h1v2h-1z"><animate attributeName="opacity" values="0;0;1;0" keyTimes="0;0.95;0.975;1" dur="6s" repeatCount="indefinite"/></path>`
+
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 11" width="22" height="15" shape-rendering="crispEdges">',
+    `<path fill="${body}" fill-rule="evenodd" d="M2 0h12v9H2zM4 2v2h1V2zM11 2v2h1V2zM0 4h2v2H0zM14 4h2v2h-2zM3 9h1v2H3zM5 9h1v2H5zM10 9h1v2h-1zM12 9h1v2h-1z"/>`,
+    lids,
+    '</svg>',
+  ].join('')
+}
+
 // What Clawd says when poked, by how full the fullest meter is.
 const QUIPS: readonly (readonly [number, readonly string[]])[] = [
   [95, ['Scraping the bottom of the tide pool.', 'I can see the limit from here. It waves.']],
@@ -301,7 +317,10 @@ export const register: Register = on => {
     await read($, tick)
     const now = await $.clock.now()
     const meters = data === null ? [] : metersOf(data, now)
-    const { Box, Button, Text } = $.ui.resolve(e)
+    const table = $.ui.resolve(e)
+    const { Box, Button, Text } = table
+    // Pixels where the surface draws them, glyphs on the terminal.
+    const Svg = e.surface !== 'terminal' && 'Svg' in table ? table.Svg : undefined
 
     const setMode = async (to: Mode) => {
       await update($, mode, () => to)
@@ -323,19 +342,22 @@ export const register: Register = on => {
 
     const columns = e.props.bodyColumns
     const fullest = Math.max(...meters.map(meter => meter.percent))
-    const clawd = (
-      <Button
-        key="clawd"
-        plain
-        label="Clawd"
-        onPress={() => {
-          pokes += 1
-          $.ui.toast(`Clawd: ${quip(fullest, pokes)}`)
-        }}
-      >
-        <Text color={fullest >= 90 ? RED[0] : 'claude'}>{CLAWD}</Text>
-      </Button>
-    )
+    const clawd =
+      Svg !== undefined ? (
+        <Svg source={clawdSvg(fullest >= 75)} alt={`Clawd: ${quip(fullest, 0)}`} width={22} height={15} />
+      ) : (
+        <Button
+          key="clawd"
+          plain
+          label="Clawd"
+          onPress={() => {
+            pokes += 1
+            $.ui.toast(`Clawd: ${quip(fullest, pokes)}`)
+          }}
+        >
+          <Text color={fullest >= 90 ? RED[0] : 'claude'}>{CLAWD}</Text>
+        </Button>
+      )
     const bar = (meter: Meter, width: number) => {
       const filled =
         meter.percent <= 0 ? 0 : Math.min(width, Math.max(1, Math.round((meter.percent / 100) * width)))
@@ -349,25 +371,30 @@ export const register: Register = on => {
     }
 
     if (view === 'compact') {
-      const width = columns >= 100 ? 10 : columns >= 72 ? 6 : 0
+      // One line, always: a proportional font draws the bar's glyphs wide, so
+      // the desktop gets fewer of them, and nothing here may wrap.
+      const width = Svg !== undefined ? 5 : columns >= 100 ? 10 : columns >= 72 ? 6 : 0
 
       return (
-        <Box columnGap={3} flexWrap="wrap">
+        <Box columnGap={2} flexWrap="nowrap" alignItems="center" overflow="hidden">
           {clawd}
           {meters.map(meter => (
-            <Box gap={1}>
-              <Text dimColor>{meter.label}</Text>
+            <Box gap={1} flexShrink={0}>
+              <Text dimColor wrap="truncate-end">
+                {meter.label}
+              </Text>
               {width > 0 && bar(meter, width)}
               <Text bold color={meter.hues[0]}>
                 {whole(meter.percent)}
               </Text>
-              {meter.brief !== '' && <Text dimColor>{meter.brief}</Text>}
+              {meter.brief !== '' && (
+                <Text dimColor wrap="truncate-end">
+                  {meter.brief}
+                </Text>
+              )}
             </Box>
           ))}
-          <Box gap={1}>
-            <Button key="details" dimColor label="Details" onPress={() => setMode('full')} />
-            <Button key="hide" role="dismiss" dimColor label="Hide" onPress={hide} />
-          </Box>
+          <Button key="details" dimColor label="Details" onPress={() => setMode('full')} />
         </Box>
       )
     }
