@@ -3,7 +3,7 @@
 A Claude Code mod that shows your plan usage right above the prompt, so you never have to dig through settings to find out how much of your limit is left.
 
 ```
-▐▛███▜▌   Session ━━━━━━━━━━ 34% 2h 14m   Week ━━━━━━━━━━ 12% 3d 8h   Context ━━━━━━━━━━ 41%   Details  Hide
+Session ━━━━━━━━━━ 34% 2h 14m   Week ━━━━━━━━━━ 12% 3d 8h   Context ━━━━━━━━━━ 41%   Details  Hide
 ```
 
 Works in the Claude Code terminal and in the Claude desktop app's Code tab.
@@ -32,7 +32,7 @@ Each meter has its own colour (blue, purple, green) and turns orange at 75% and 
 - **Pace**: the details view projects where each window will land, for example `on pace for ~57% by reset` or `limit in ~1h 20m at this pace`. A meter turns orange early when your pace would hit the limit.
 - **Limit warnings**: a toast when a limit crosses 75%, 90% and 95%, once per threshold per window.
 - **Remembers**: your chosen view and the last limit reading carry over, so a new session shows numbers before its first reply.
-- **Clawd**: the little crab at the start of the band is there for moral support. Poke it.
+- **Clawd** (desktop app): a small animated pixel crab at the start of the band. Hover it and it comments on your actual numbers, like how much of the session limit is left, when it resets, and whether your pace will get you there.
 
 ## Command
 

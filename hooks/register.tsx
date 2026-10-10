@@ -13,11 +13,7 @@ const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 const THRESHOLDS = [75, 90, 95]
 const FILL = '━'
-// Clawd for the terminal: the whole crab in one row of braille cells (a body
-// with two eyes, two arms and four legs, twelve dots by four).
-const CLAWD = '⠼⡯⡿⢿⢽⠧'
-
-// Clawd as pixels, for a surface that draws them: a body with two eye holes,
+// Clawd as pixels, for the surfaces that draw them (the terminal has none): a body with two eye holes,
 // two arms and four legs. It blinks, taps its feet, hops and waves a claw now
 // and then, and squints as the limits fill.
 const clawdSvg = (isSquinting: boolean): string => {
@@ -41,47 +37,6 @@ const clawdSvg = (isSquinting: boolean): string => {
     '</g>',
     '</svg>',
   ].join('')
-}
-
-// Three sparkles twinkling through the meters' colours, quicker while a turn
-// is running.
-const sparklesSvg = (isWorking: boolean): string => {
-  const pace = isWorking ? 0.9 : 2.6
-  const colours = `${BLUE[0]};${PURPLE[0]};#D97757;${GREEN[0]};${BLUE[0]}`
-  const star = (x: number, y: number, r: number, delay: number) =>
-    [
-      `<g transform="translate(${x} ${y})">`,
-      `<path d="M0 ${-r}Q0 0 ${r} 0Q0 0 0 ${r}Q0 0 ${-r} 0Q0 0 0 ${-r}Z" fill="${BLUE[0]}">`,
-      `<animateTransform attributeName="transform" type="scale" values="0.35;1;0.35" dur="${pace}s" begin="${-delay * pace}s" repeatCount="indefinite"/>`,
-      `<animate attributeName="opacity" values="0.35;1;0.35" dur="${pace}s" begin="${-delay * pace}s" repeatCount="indefinite"/>`,
-      `<animate attributeName="fill" values="${colours}" dur="${pace * 3}s" begin="${-delay * pace * 3}s" repeatCount="indefinite"/>`,
-      '</path></g>',
-    ].join('')
-
-  return [
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 18" width="26" height="18">',
-    star(8, 10, 6.5, 0),
-    star(19, 5.5, 4, 0.4),
-    star(20, 14, 2.8, 0.75),
-    '</svg>',
-  ].join('')
-}
-
-// What Clawd says when poked, by how full the fullest meter is.
-const QUIPS: readonly (readonly [number, readonly string[]])[] = [
-  [95, ['Scraping the bottom of the tide pool.', 'I can see the limit from here. It waves.']],
-  [90, ['Pinching every token now.', 'Maybe let the tide come back in first?']],
-  [75, ['Getting snappy. Pace yourself.', 'Claws crossed we make it to the reset.']],
-  [40, ['Cruising sideways, as intended.', 'Steady as she scuttles.']],
-  [0, ['Plenty of room in the shell.', 'Fresh claws, full tank.', 'Go on, ask it something big.']],
-]
-const POKED = ['Ow.', 'That is my good claw.', 'Okay, okay. I am counting, not ticklish.']
-
-const quip = (percent: number, pokes: number): string => {
-  if (pokes > 0 && pokes % 5 === 0) return POKED[(pokes / 5 - 1) % POKED.length] ?? 'Ow.'
-  const lines = QUIPS.find(([floor]) => percent >= floor)?.[1] ?? []
-
-  return lines[pokes % Math.max(1, lines.length)] ?? 'Snip snip.'
 }
 
 // The system palette: one hue pair per meter, warm ones as a window fills.
@@ -240,12 +195,84 @@ const summary = (data: Reading | null, now: number): string => {
     .join('\n')
 }
 
+// What Clawd says when hovered: lines made from the reading itself, so they
+// change as the numbers do.
+const sayings = (data: Reading, now: number): string[] => {
+  const lines: string[] = []
+  for (const limit of data.limits) {
+    const name =
+      limit.kind === 'five_hour'
+        ? 'session'
+        : limit.kind === 'seven_day'
+          ? 'weekly'
+          : labelOf(limit.kind).toLowerCase()
+    const left = limit.resetsAt === undefined ? NaN : Date.parse(limit.resetsAt) - now
+    if (left <= 0) {
+      lines.push(`The ${name} limit just reset. Fresh claws, full tank.`)
+      continue
+    }
+    const percent = limit.percentUsed
+    const used = whole(percent)
+    lines.push(
+      percent >= 100
+        ? `The ${name} limit is spent. Time to bask on a rock.`
+        : percent >= 90
+          ? `${used} of the ${name} limit gone. Pinching every token now.`
+          : percent >= 75
+            ? `${used} of the ${name} limit used. Getting snappy, pace yourself.`
+            : percent >= 50
+              ? `${used} into the ${name} limit. Steady as she scuttles.`
+              : percent >= 25
+                ? `${whole(100 - percent)} of the ${name} limit still free. Cruising sideways.`
+                : `Only ${used} of the ${name} limit used. Plenty of room in the shell.`,
+    )
+    if (Number.isNaN(left)) continue
+    lines.push(
+      left < 30 * MINUTE
+        ? `The ${name} limit resets in ${span(left)}. Fresh claws incoming.`
+        : percent >= 75
+          ? `${span(left)} until the ${name} limit resets. Hang in there.`
+          : `${span(left)} until the ${name} limit resets. No rush.`,
+    )
+    const ahead = pace(limit, left)
+    if (ahead?.isHot === true) {
+      lines.push(`Careful: ${ahead.text} on the ${name} limit. Maybe slow the scuttle.`)
+    } else if (ahead !== undefined) {
+      lines.push(`You are ${ahead.text} on the ${name} limit. Carry on.`)
+    }
+  }
+
+  const context = data.context
+  if (context?.percent !== undefined) {
+    const size =
+      context.tokens === undefined ? '' : ` (${tokens(context.tokens)} of ${tokens(context.window)})`
+    lines.push(
+      context.percent >= 80
+        ? `Context is ${whole(context.percent)} full${size}. A /compact would feel nice.`
+        : context.percent >= 50
+          ? `Context is ${whole(context.percent)} full${size}. Getting cosy in here.`
+          : `Context is ${whole(context.percent)} full${size}. Lots of room to think.`,
+    )
+  }
+  if (data.costUsd !== undefined && data.costUsd > 0) {
+    lines.push(`$${data.costUsd.toFixed(2)} of tokens at API rates this chat. I am not judging.`)
+  }
+  if (data.startedAt !== undefined) {
+    const age = now - data.startedAt
+    lines.push(
+      age >= 2 * HOUR
+        ? `${span(age)} in this chat. Stretch your claws.`
+        : `${span(age)} into this chat. Nice and fresh.`,
+    )
+  }
+
+  return lines.length === 0 ? ['Snip snip.'] : lines
+}
+
 // JSON data only: a field the engine left out is left out, never `undefined`.
 const plain = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
 export const register: Register = on => {
-  let pokes = 0
-
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'usage-band',
@@ -377,42 +404,30 @@ export const register: Register = on => {
 
     const columns = e.props.bodyColumns
     const fullest = Math.max(...meters.map(meter => meter.percent))
-    const clawd =
-      Svg !== undefined ? (
-        // Hovering Clawd shows what it has to say in a talk bubble laid over
-        // the meters beside it, so nothing in the band moves.
-        <Box key="clawd" position="relative" alignItems="center" flexShrink={0}>
-          <Svg source={clawdSvg(fullest >= 75)} alt="Clawd" width={24} height={18} />
-          <Box
-            position="absolute"
-            top={0}
-            left={4}
-            display="none"
-            hover={{ display: 'flex' }}
-            backgroundColor="claude"
-            paddingX={1}
-          >
-            <Text bold color="inverseText" wrap="truncate-end">
-              {'◂ '}
-              {quip(fullest, beat)}
-            </Text>
-          </Box>
-        </Box>
-      ) : (
-        <Button
-          key="clawd"
-          plain
-          label="Clawd"
-          onPress={() => {
-            pokes += 1
-            $.ui.toast(`Clawd: ${quip(fullest, pokes)}`)
-          }}
+    const lines = sayings(data, now)
+    const saying = lines[(beat + Math.floor(now / 30_000)) % lines.length] ?? ''
+    // Hovering Clawd shows what it has to say in a talk bubble laid over the
+    // meters beside it, so nothing in the band moves. The terminal has no Clawd.
+    const clawd = Svg !== undefined && (
+      <Box key="clawd" position="relative" alignItems="center" flexShrink={0}>
+        <Svg source={clawdSvg(fullest >= 75)} alt="Clawd" width={24} height={18} />
+        <Box
+          position="absolute"
+          top={0}
+          left={4}
+          display="none"
+          hover={{ display: 'flex' }}
+          backgroundColor="inverseText"
+          paddingX={1}
         >
-          <Text color={fullest >= 90 ? RED[0] : 'claude'}>{CLAWD}</Text>
-        </Button>
-      )
-    const sparkles = Svg !== undefined && (
-      <Svg source={sparklesSvg(e.props.isWorking)} alt="Sparkles" width={26} height={18} />
+          <Text color="claude" backgroundColor="inverseText">
+            {'◂ '}
+          </Text>
+          <Text color="text" backgroundColor="inverseText" wrap="truncate-end">
+            {saying}
+          </Text>
+        </Box>
+      </Box>
     )
     const bar = (meter: Meter, width: number) => {
       const filled =
@@ -451,7 +466,6 @@ export const register: Register = on => {
             </Box>
           ))}
           <Button key="details" plain dimColor label="Details" onPress={() => setMode('full')} />
-          {sparkles}
         </Box>
       )
     }
@@ -483,7 +497,6 @@ export const register: Register = on => {
           {footer !== '' && <Text dimColor>{footer}</Text>}
           <Button key="compact" dimColor label="Less" onPress={() => setMode('compact')} />
           <Button key="hide" role="dismiss" dimColor label="Hide" onPress={hide} />
-          {sparkles}
         </Box>
       </Box>
     )

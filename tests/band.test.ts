@@ -67,26 +67,18 @@ test('warns once per threshold as a window fills', async ($, on) => {
   expect(toasts[0]).toContain('Session limit 91% used')
 })
 
-test('Clawd answers a poke', async ($, on) => {
+test('Clawd lives on the desktop only', async ($, on) => {
   mock.clock(on, { now: NOW })
   mock.store(on)
-  const toasts: string[] = []
   on('session.measure', (_$, e) => ({ changed: e.changed }))
-  on('ui.toast', (_$, e) => {
-    toasts.push(e.text)
-
-    return { value: undefined }
-  })
 
   await $.session.measure(measure(20, 10))
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  await ui.press({ key: 'clawd' })
-  expect(toasts[0]).toMatch(/^Clawd: /)
-  await ui.unmount()
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminal.find({ key: 'clawd' })).toBeUndefined()
+  await terminal.unmount()
 
-  // The desktop draws the mascot as pixels, with no text label.
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  expect((await desktop.findAll({ type: 'Svg' })).length).toBe(2)
+  expect((await desktop.findAll({ type: 'Svg' })).length).toBe(1)
   expect(await desktop.find({ type: 'Box', key: 'clawd' })).toBeDefined()
   await desktop.unmount()
 })
