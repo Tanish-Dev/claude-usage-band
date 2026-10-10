@@ -1,0 +1,16 @@
+{
+  "name": "tanish-mods",
+  "owner": {
+    "name": "Tanish"
+  },
+  "plugins": [
+    {
+      "name": "usage-band",
+      "source": "./",
+      "description": "Your Claude plan usage above the prompt: session and weekly limits, reset countdowns, pace, context fill and limit warnings."
+    }
+  ],
+  "metadata": {
+    "description": "Claude Code mods by Tanish: usage band above the prompt."
+  }
+}
