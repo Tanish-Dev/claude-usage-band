@@ -17,17 +17,27 @@ const FILL = '━'
 const CLAWD = '▐▛███▜▌'
 
 // Clawd as pixels, for a surface that draws them: a body with two eye holes,
-// two arms and four legs, blinking now and then; squinting as the limits fill.
+// two arms and four legs. It blinks, taps its feet, hops and waves a claw now
+// and then, and squints as the limits fill.
 const clawdSvg = (isSquinting: boolean): string => {
   const body = '#D97757'
+  const move = (values: string, keyTimes: string, dur: string) =>
+    `<animateTransform attributeName="transform" type="translate" values="${values}" keyTimes="${keyTimes}" dur="${dur}" repeatCount="indefinite"/>`
   const lids = isSquinting
     ? `<path fill="${body}" d="M4 2h1v1H4zM11 2h1v1h-1z"/>`
-    : `<path fill="${body}" opacity="0" d="M4 2h1v2H4zM11 2h1v2h-1z"><animate attributeName="opacity" values="0;0;1;0" keyTimes="0;0.95;0.975;1" dur="6s" repeatCount="indefinite"/></path>`
+    : `<path fill="${body}" opacity="0" d="M4 2h1v2H4zM11 2h1v2h-1z"><animate attributeName="opacity" values="0;0;1;0" keyTimes="0;0.95;0.975;1" dur="5s" repeatCount="indefinite"/></path>`
 
   return [
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 11" width="22" height="15" shape-rendering="crispEdges">',
-    `<path fill="${body}" fill-rule="evenodd" d="M2 0h12v9H2zM4 2v2h1V2zM11 2v2h1V2zM0 4h2v2H0zM14 4h2v2h-2zM3 9h1v2H3zM5 9h1v2H5zM10 9h1v2h-1zM12 9h1v2h-1z"/>`,
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -1 16 12" width="24" height="18" shape-rendering="crispEdges">',
+    `<g fill="${body}">`,
+    move('0 0;0 0;0 -1;0 0;0 0', '0;0.6;0.66;0.72;1', '4s'),
+    '<path fill-rule="evenodd" d="M2 0h12v9H2zM4 2v2h1V2zM11 2v2h1V2z"/>',
     lids,
+    '<path d="M0 4h2v2H0z"/>',
+    `<path d="M14 4h2v2h-2z">${move('0 0;0 -1;0 0;0 -1;0 0;0 0', '0;0.04;0.08;0.12;0.16;1', '7s')}</path>`,
+    `<path d="M3 9h1v2H3zM10 9h1v2h-1z">${move('0 0;0 -1;0 0;0 0', '0;0.05;0.1;1', '4s')}</path>`,
+    `<path d="M5 9h1v2H5zM12 9h1v2h-1z">${move('0 0;0 0;0 -1;0 0;0 0', '0;0.1;0.15;0.2;1', '4s')}</path>`,
+    '</g>',
     '</svg>',
   ].join('')
 }
@@ -314,7 +324,7 @@ export const register: Register = on => {
     if (e.props.hasSurvey || view === 'hidden') return next(e)
 
     const data = await read($, reading)
-    await read($, tick)
+    const beat = await read($, tick)
     const now = await $.clock.now()
     const meters = data === null ? [] : metersOf(data, now)
     const table = $.ui.resolve(e)
@@ -344,7 +354,15 @@ export const register: Register = on => {
     const fullest = Math.max(...meters.map(meter => meter.percent))
     const clawd =
       Svg !== undefined ? (
-        <Svg source={clawdSvg(fullest >= 75)} alt={`Clawd: ${quip(fullest, 0)}`} width={22} height={15} />
+        // Hovering Clawd reveals what it has to say, beside it.
+        <Box key="clawd" gap={1} alignItems="center" flexShrink={0}>
+          <Svg source={clawdSvg(fullest >= 75)} alt="Clawd" width={24} height={18} />
+          <Box display="none" hover={{ display: 'flex' }}>
+            <Text italic color="claude">
+              {quip(fullest, beat)}
+            </Text>
+          </Box>
+        </Box>
       ) : (
         <Button
           key="clawd"
