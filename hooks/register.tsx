@@ -39,24 +39,46 @@ const clawdSvg = (isSquinting: boolean): string => {
   ].join('')
 }
 
-// The system palette: one hue pair per meter, warm ones as a window fills.
-type Hues = readonly [string, string]
-const BLUE: Hues = ['#0A84FF', '#64D2FF']
-const PURPLE: Hues = ['#BF5AF2', '#FF6BD6']
-const GREEN: Hues = ['#28BD52', '#63E6E2']
-const INDIGO: Hues = ['#5E5CE6', '#0A84FF']
-const ORANGE: Hues = ['#FF9F0A', '#FFD60A']
-const RED: Hues = ['#FF453A', '#FF375F']
+// The system palette: each meter's hue as a deep, a middle and a light shade,
+// the fill running through all three; warm ones as a window fills.
+type Hues = readonly [string, string, string]
+const BLUE: Hues = ['#0055D4', '#0A84FF', '#7FE0FF']
+const PURPLE: Hues = ['#7B2FF7', '#BF5AF2', '#FF7AD9']
+const GREEN: Hues = ['#0E9F4F', '#28BD52', '#9BF5C8']
+const INDIGO: Hues = ['#3634A3', '#5E5CE6', '#A5A4FF']
+const ORANGE: Hues = ['#E07800', '#FF9F0A', '#FFD60A']
+const RED: Hues = ['#C81E1E', '#FF453A', '#FF8A80']
 
-// The colour a share of the way from a pair's first hue to its second.
-const blend = ([from, to]: Hues, share: number): string => {
+// The colour a share of the way through a meter's three shades.
+const blend = (hues: Hues, share: number): string => {
+  const [from, to] = share < 0.5 ? [hues[0], hues[1]] : [hues[1], hues[2]]
+  const part = share < 0.5 ? share * 2 : (share - 0.5) * 2
   const channel = (hex: string, at: number) => parseInt(hex.slice(at, at + 2), 16)
   const mix = (at: number) =>
-    Math.round(channel(from, at) + (channel(to, at) - channel(from, at)) * share)
+    Math.round(channel(from, at) + (channel(to, at) - channel(from, at)) * part)
       .toString(16)
       .padStart(2, '0')
 
   return `#${mix(1)}${mix(3)}${mix(5)}`
+}
+
+// The bar where pixels are drawn: the same thin line, its fill a smooth
+// gradient through the meter's shades.
+const lineSvg = (key: string, percent: number, hues: Hues, width: number): string => {
+  const id = key.replace(/[^a-z0-9]/gi, '')
+  const filled = percent <= 0 ? 0 : Math.min(width, Math.max(4, (percent / 100) * width))
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="12" viewBox="0 0 ${width} 12">`,
+    `<defs><linearGradient id="g${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${Math.max(filled, 1).toFixed(1)}" y2="0">`,
+    `<stop offset="0" stop-color="${hues[0]}"/><stop offset=".5" stop-color="${hues[1]}"/><stop offset="1" stop-color="${hues[2]}"/>`,
+    '</linearGradient></defs>',
+    `<rect x="0" y="4.5" width="${width}" height="3" rx="1.5" fill="#8E8E93" fill-opacity=".3"/>`,
+    filled > 0
+      ? `<rect x="0" y="4.5" width="${filled.toFixed(1)}" height="3" rx="1.5" fill="url(#g${id})"/>`
+      : '',
+    '</svg>',
+  ].join('')
 }
 
 type Meter = {
@@ -443,7 +465,19 @@ export const register: Register = on => {
       const filled =
         meter.percent <= 0 ? 0 : Math.min(width, Math.max(1, Math.round((meter.percent / 100) * width)))
 
-      // The fill runs from the meter's hue to its lighter shade, cell by cell.
+      if (Svg !== undefined) {
+        const pixels = width * 12
+
+        return (
+          <Svg
+            source={lineSvg(meter.key, meter.percent, meter.hues, pixels)}
+            alt={`${meter.label} ${whole(meter.percent)}`}
+            width={pixels}
+            height={12}
+          />
+        )
+      }
+      // The terminal's fill runs through the meter's shades cell by cell.
       const cells = Array.from({ length: filled }, (_, at) =>
         blend(meter.hues, filled === 1 ? 0 : at / (filled - 1)),
       )
@@ -467,12 +501,12 @@ export const register: Register = on => {
         <Box columnGap={2} flexWrap="nowrap" alignItems="center">
           {clawd}
           {meters.map(meter => (
-            <Box gap={1} flexShrink={0}>
+            <Box gap={1} flexShrink={0} alignItems="center">
               <Text dimColor wrap="truncate-end">
                 {meter.label}
               </Text>
               {width > 0 && bar(meter, width)}
-              <Text bold color={meter.hues[0]}>
+              <Text bold color={meter.hues[1]}>
                 {whole(meter.percent)}
               </Text>
               {meter.brief !== '' && (
@@ -488,19 +522,19 @@ export const register: Register = on => {
     }
 
     const labelWidth = Math.max(...meters.map(meter => meter.label.length)) + 2
-    const width = Math.max(8, Math.min(28, columns - labelWidth - 48))
+    const width = Svg !== undefined ? 14 : Math.max(8, Math.min(28, columns - labelWidth - 48))
     const footer = sessionLine(data, now)
 
     return (
       <Box flexDirection="column">
         {meters.map(meter => (
-          <Box gap={1}>
+          <Box gap={1} alignItems="center">
             <Box width={labelWidth}>
               <Text>{meter.label}</Text>
             </Box>
             {bar(meter, width)}
             <Box width={5} justifyContent="flex-end">
-              <Text bold color={meter.hues[0]}>
+              <Text bold color={meter.hues[1]}>
                 {whole(meter.percent)}
               </Text>
             </Box>

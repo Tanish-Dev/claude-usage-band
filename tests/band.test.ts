@@ -78,7 +78,7 @@ test('Clawd lives on the desktop only', async ($, on) => {
   await terminal.unmount()
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  expect((await desktop.findAll({ type: 'Svg' })).length).toBe(1)
+  expect((await desktop.findAll({ type: 'Svg' })).length).toBe(4)
   expect(await desktop.find({ type: 'Box', key: 'clawd' })).toBeDefined()
   await desktop.unmount()
 })
