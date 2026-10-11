@@ -48,6 +48,17 @@ const INDIGO: Hues = ['#5E5CE6', '#0A84FF']
 const ORANGE: Hues = ['#FF9F0A', '#FFD60A']
 const RED: Hues = ['#FF453A', '#FF375F']
 
+// The colour a share of the way from a pair's first hue to its second.
+const blend = ([from, to]: Hues, share: number): string => {
+  const channel = (hex: string, at: number) => parseInt(hex.slice(at, at + 2), 16)
+  const mix = (at: number) =>
+    Math.round(channel(from, at) + (channel(to, at) - channel(from, at)) * share)
+      .toString(16)
+      .padStart(2, '0')
+
+  return `#${mix(1)}${mix(3)}${mix(5)}`
+}
+
 type Meter = {
   key: string
   label: string
@@ -432,9 +443,16 @@ export const register: Register = on => {
       const filled =
         meter.percent <= 0 ? 0 : Math.min(width, Math.max(1, Math.round((meter.percent / 100) * width)))
 
+      // The fill runs from the meter's hue to its lighter shade, cell by cell.
+      const cells = Array.from({ length: filled }, (_, at) =>
+        blend(meter.hues, filled === 1 ? 0 : at / (filled - 1)),
+      )
+
       return (
         <Text>
-          <Text color={meter.hues[0]}>{FILL.repeat(filled)}</Text>
+          {cells.map(colour => (
+            <Text color={colour}>{FILL}</Text>
+          ))}
           <Text color="subtle">{FILL.repeat(width - filled)}</Text>
         </Text>
       )
