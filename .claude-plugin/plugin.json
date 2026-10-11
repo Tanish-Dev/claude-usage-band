@@ -1,7 +1,7 @@
 {
   "name": "usage-band",
   "version": "0.1.0",
-  "description": "Your Claude plan usage above the prompt: session and weekly limits, reset countdowns, pace, context fill and limit warnings.",
+  "description": "Clawd Meter: your Claude plan usage above the prompt: session and weekly limits, reset countdowns, pace, context fill and limit warnings.",
   "types": "./types/index.d.ts",
   "author": {
     "name": "Tanish",

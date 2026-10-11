@@ -1,6 +1,6 @@
 <div align="center">
 
-# Usage Band
+# Clawd Meter
 
 ### Your Claude plan usage, right above the prompt.
 
@@ -13,7 +13,7 @@ A mod for [Claude Code](https://claude.com/claude-code) that keeps your session 
 
 <br>
 
-<img src="assets/usage-band.webp" alt="Usage Band above the Claude Code prompt: Clawd the crab, then Session 35%, Week 16% and Context 25% meters with reset countdowns" width="900">
+<img src="assets/usage-band.webp" alt="Clawd Meter above the Claude Code prompt: Clawd the crab, then Session 35%, Week 16% and Context 25% meters with reset countdowns" width="900">
 
 </div>
 
